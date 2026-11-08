@@ -15,10 +15,10 @@ Todos os registros de negócio pertencem a uma organização. A migração inici
 
 ## Fluxo principal
 
-1. Escolher cidade/região, raio e categorias de estabelecimento.
-2. Consultar uma fonte de dados comerciais aprovada para uso e armazenamento no CRM.
-3. Revisar os candidatos e evitar duplicidades.
-4. Pesquisar evidências públicas de cerveja artesanal.
+1. Escolher cidade/UF e categorias de estabelecimento.
+2. Consultar a API Econodata V4 por filtros geográficos e CNAE.
+3. Revisar os candidatos e evitar duplicidades antes de adicioná-los ao funil.
+4. Pesquisar separadamente evidências públicas de cerveja artesanal.
 5. Registrar o resultado como **Encontrado**, **Não encontrado** ou **Precisa confirmar**, sempre com URL e data quando houver fonte.
 6. Fazer contato, agendar visita, enviar proposta e acompanhar o resultado.
 
@@ -34,4 +34,4 @@ Todos os registros de negócio pertencem a uma organização. A migração inici
 
 ## Critério para escolher a fonte
 
-Antes de integrar um fornecedor, validar cobertura em São Carlos, categorias e campos retornados, preço por consulta, atualização, limites de uso e permissão expressa para salvar os dados no CRM e oferecer o app comercialmente.
+Antes do uso comercial, validar cobertura em São Carlos, categorias e campos retornados, preço por consulta, atualização, limites de uso e permissão expressa para salvar os dados no CRM e oferecer o app comercialmente. A integração inicial consulta no servidor e mantém a chave fora do navegador. Em produção, a rota exige configuração de Supabase Auth e sessão autenticada.

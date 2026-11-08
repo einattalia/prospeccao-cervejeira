@@ -6,6 +6,7 @@ import {
   CircleHelp, Clock3, Filter, MapPin, Menu, MoreHorizontal, Plus, Search,
   SlidersHorizontal, Sparkles, Store, Users, X,
 } from "lucide-react";
+import { ECONODATA_CATEGORIES, type EconodataProspect, type EconodataCategory } from "@/lib/econodata/types";
 
 type Prospect = {
   id: number;
@@ -46,16 +47,50 @@ export default function Home() {
   const [stageFilter, setStageFilter] = useState("Todas as etapas");
   const [showSearch, setShowSearch] = useState(false);
   const [city, setCity] = useState("São Carlos, SP");
+  const [categories, setCategories] = useState<EconodataCategory[]>(["bars", "restaurants"]);
+  const [discovered, setDiscovered] = useState<EconodataProspect[]>([]);
+  const [searchError, setSearchError] = useState("");
+  const [searching, setSearching] = useState(false);
   const [notice, setNotice] = useState("");
   const filtered = useMemo(() => prospects.filter((p) => {
     const matchesQuery = `${p.name} ${p.category} ${p.neighborhood}`.toLowerCase().includes(query.toLowerCase());
     return matchesQuery && (stageFilter === "Todas as etapas" || p.status === stageFilter);
   }), [prospects, query, stageFilter]);
 
-  function runDiscovery() {
-    setShowSearch(false);
-    setNotice(`Busca preparada para ${city}. A integração com a fonte de empresas será conectada nesta etapa.`);
-    window.setTimeout(() => setNotice(""), 6000);
+  async function runDiscovery() {
+    const parts = city.split(",").map((part) => part.trim());
+    if (parts.length < 2 || !parts[0] || !/^[A-Za-z]{2}$/.test(parts[1]) || categories.length === 0) {
+      setSearchError("Informe a cidade e a UF (por exemplo, São Carlos, SP) e selecione ao menos uma categoria.");
+      return;
+    }
+    setSearching(true);
+    setSearchError("");
+    try {
+      const response = await fetch("/api/prospects/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city: parts[0], state: parts[1], categories }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível concluir a busca.");
+      setDiscovered(data.prospects ?? []);
+      setSearchError(data.prospects?.length ? "" : "A Econodata respondeu, mas não encontramos empresas para estes filtros.");
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Falha ao consultar a Econodata.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function toggleCategory(category: EconodataCategory) {
+    setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
+  }
+
+  function addDiscovered(prospect: EconodataProspect) {
+    setProspects((current) => current.some((item) => item.name.toLowerCase() === prospect.name.toLowerCase()) ? current : [{
+      id: Date.now(), name: prospect.name, category: prospect.category, neighborhood: [prospect.neighborhood, prospect.city].filter(Boolean).join(" · "), status: "Novo lead", signal: "Confirmar", source: "Cadastro Econodata", date: "agora", initials: prospect.name.slice(0, 2).toUpperCase(), tone: "mint",
+    }, ...current]);
+    setNotice(`${prospect.name} adicionado às oportunidades para qualificação.`);
   }
 
   function advanceProspect(id: number) {
@@ -120,7 +155,7 @@ export default function Home() {
         </div>
       </section>
 
-      {showSearch && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowSearch(false); }}><section className="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title"><button className="modal-close" onClick={() => setShowSearch(false)} aria-label="Fechar"><X size={18}/></button><div className="modal-icon"><MapPin size={21}/></div><div className="modal-kicker">RADAR DE OPORTUNIDADES</div><h2 id="search-title">Onde vamos procurar?</h2><p>Defina uma região e os tipos de estabelecimento. O app vai preparar uma lista para você revisar.</p><label className="field-label" htmlFor="city">Cidade ou região</label><div className="modal-input"><MapPin size={17}/><input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: São Carlos, SP"/></div><label className="field-label" htmlFor="radius">Raio de busca</label><div className="modal-input"><MapPin size={17}/><select id="radius"><option>Até 10 km</option><option>Até 25 km</option><option>Até 50 km</option></select><ChevronDown size={15}/></div><label className="field-label">Tipos de estabelecimento</label><div className="category-chips"><button className="selected"><Check size={13}/> Bares</button><button className="selected"><Check size={13}/> Restaurantes</button><button>Empórios</button><button>Lojas de bebidas</button><button>Mercados premium</button></div><div className="source-note"><Sparkles size={16}/><span><b>Busca assistida por IA</b><small>A fonte de estabelecimentos será conectada após validarmos o fornecedor e as permissões de uso dos dados.</small></span></div><button className="primary-button modal-submit" onClick={runDiscovery}>Preparar busca <ArrowUpRight size={16}/></button></section></div>}
+      {showSearch && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowSearch(false); }}><section className="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title"><button className="modal-close" onClick={() => setShowSearch(false)} aria-label="Fechar"><X size={18}/></button><div className="modal-icon"><MapPin size={21}/></div><div className="modal-kicker">RADAR DE OPORTUNIDADES</div><h2 id="search-title">Onde vamos procurar?</h2><p>Pesquise empresas por cidade e perfil. A Econodata retorna cadastros empresariais; a presença de cerveja artesanal deve ser confirmada separadamente.</p><label className="field-label" htmlFor="city">Cidade e UF</label><div className="modal-input"><MapPin size={17}/><input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: São Carlos, SP"/></div><label className="field-label">Tipos de estabelecimento</label><div className="category-chips">{(Object.entries(ECONODATA_CATEGORIES) as [EconodataCategory, {label: string}][]).map(([key, value]) => <button key={key} className={categories.includes(key) ? "selected" : ""} onClick={() => toggleCategory(key)}>{categories.includes(key) && <Check size={13}/>} {value.label}</button>)}</div><div className="source-note"><Sparkles size={16}/><span><b>Busca empresarial via Econodata</b><small>Busca por cidade e CNAE. A integração exige uma chave de API configurada no servidor.</small></span></div>{searchError && <div className="search-error" role="alert">{searchError}</div>}<button className="primary-button modal-submit" onClick={runDiscovery} disabled={searching}>{searching ? "Buscando empresas…" : "Buscar empresas"} {!searching && <ArrowUpRight size={16}/>}</button>{discovered.length > 0 && <div className="discovery-results"><h3>{discovered.length} empresas encontradas</h3>{discovered.map((item) => <article key={item.id}><div><b>{item.name}</b><small>{[item.category, item.city, item.state, item.phone].filter(Boolean).join(" · ")}</small></div><button onClick={() => addDiscovered(item)}>Adicionar lead</button></article>)}</div>}</section></div>}
     </main>
   );
 }
