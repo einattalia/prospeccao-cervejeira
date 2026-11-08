@@ -39,7 +39,7 @@ Abra `http://localhost:3000`.
 4. Substituir os dados demonstrativos pela leitura e gravação no Supabase.
 5. Validar a Econodata (ou fornecedor alternativo), incluindo autorização para persistir os dados no CRM.
 6. Integrar a IA para classificar evidências públicas de cerveja artesanal, sempre salvando fonte e data.
-7. Publicar em repositório GitHub e conectar à Vercel.
+7. Conectar o repositório à Vercel e preparar o primeiro deploy.
 
 ## Segurança
 
@@ -47,3 +47,4 @@ Abra `http://localhost:3000`.
 - Não publicar `.env.local`.
 - Manter RLS ativa em todas as tabelas acessíveis pela aplicação.
 - Criar organizações e membros por onboarding controlado; não liberar auto associação a qualquer organização.
+
