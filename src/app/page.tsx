@@ -46,11 +46,14 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("Todas as etapas");
   const [showSearch, setShowSearch] = useState(false);
+  const [editingSearch, setEditingSearch] = useState(true);
   const [city, setCity] = useState("São Carlos, SP");
   const [categories, setCategories] = useState<EconodataCategory[]>(["bars", "restaurants"]);
   const [discovered, setDiscovered] = useState<EconodataProspect[]>([]);
   const [searchError, setSearchError] = useState("");
   const [searching, setSearching] = useState(false);
+  const [discoveryQuery, setDiscoveryQuery] = useState("");
+  const [addedDiscoveryIds, setAddedDiscoveryIds] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const filtered = useMemo(() => prospects.filter((p) => {
     const matchesQuery = `${p.name} ${p.category} ${p.neighborhood}`.toLowerCase().includes(query.toLowerCase());
@@ -74,6 +77,8 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Não foi possível concluir a busca.");
       setDiscovered(data.prospects ?? []);
+      setDiscoveryQuery("");
+      if (data.prospects?.length) setEditingSearch(false);
       setSearchError(data.prospects?.length ? "" : "A Econodata respondeu, mas não encontramos empresas para estes filtros.");
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : "Falha ao consultar a Econodata.");
@@ -90,8 +95,13 @@ export default function Home() {
     setProspects((current) => current.some((item) => item.name.toLowerCase() === prospect.name.toLowerCase()) ? current : [{
       id: Date.now(), name: prospect.name, category: prospect.category, neighborhood: [prospect.neighborhood, prospect.city].filter(Boolean).join(" · "), status: "Novo lead", signal: "Confirmar", source: "Cadastro Econodata", date: "agora", initials: prospect.name.slice(0, 2).toUpperCase(), tone: "mint",
     }, ...current]);
+    setAddedDiscoveryIds((current) => current.includes(prospect.id) ? current : [...current, prospect.id]);
     setNotice(`${prospect.name} adicionado às oportunidades para qualificação.`);
   }
+
+  const visibleDiscovered = discovered.filter((item) =>
+    `${item.name} ${item.category} ${item.city} ${item.state} ${item.neighborhood ?? ""}`.toLowerCase().includes(discoveryQuery.toLowerCase())
+  );
 
   function advanceProspect(id: number) {
     setProspects((current) => current.map((p) => {
@@ -133,13 +143,13 @@ export default function Home() {
         <header className="topbar"><button className="mobile-menu" aria-label="Abrir menu"><Menu size={20} /></button><div className="breadcrumb">Workspace <span>/</span> <strong>Visão geral</strong></div><div className="topbar-actions"><span className="today-label">Domingo, 8 de novembro</span><IconButton label="Notificações"><Bell size={18} /></IconButton><div className="top-avatar">D</div></div></header>
         <div className="content-wrap">
           {notice && <div className="notice"><Sparkles size={16} />{notice}<button onClick={() => setNotice("")} aria-label="Fechar aviso"><X size={16} /></button></div>}
-          <div className="welcome-row"><div><div className="eyebrow"><span className="pulse-dot" />DOMINGO, 8 DE NOVEMBRO DE 2026</div><h1>Bom dia, Diegão <span>✳</span></h1><p>Aqui está o resumo da sua prospecção. Bora abrir novos pontos?</p></div><button className="primary-button" onClick={() => setShowSearch(true)}><Plus size={17} /> Buscar oportunidades</button></div>
+          <div className="welcome-row"><div><div className="eyebrow"><span className="pulse-dot" />DOMINGO, 8 DE NOVEMBRO DE 2026</div><h1>Bom dia, Diegão <span>✳</span></h1><p>Aqui está o resumo da sua prospecção. Bora abrir novos pontos?</p></div><button className="primary-button" onClick={() => { setEditingSearch(true); setShowSearch(true); }}><Plus size={17} /> Buscar oportunidades</button></div>
 
           <div className="stats-grid">
             <article className="stat-card"><div className="stat-top"><span>Oportunidades no radar</span><div className="stat-icon soft-purple"><Users size={18} /></div></div><div className="stat-value">24 <span className="trend positive"><ArrowUpRight size={14} /> 12%</span></div><div className="stat-foot">em <b>3 cidades</b> atendidas</div><div className="mini-bars"><i style={{height:"35%"}}/><i style={{height:"54%"}}/><i style={{height:"42%"}}/><i style={{height:"69%"}}/><i style={{height:"48%"}}/><i style={{height:"78%"}}/><i style={{height:"100%"}}/></div></article>
             <article className="stat-card"><div className="stat-top"><span>Contatos em andamento</span><div className="stat-icon soft-blue"><ArrowUpRight size={18} /></div></div><div className="stat-value">08 <span className="trend positive"><ArrowUpRight size={14} /> 2 novos</span></div><div className="stat-foot">leads que precisam de <b>acompanhamento</b></div><div className="progress-line"><span style={{width:"58%"}}/></div><div className="progress-caption"><span>Meta mensal</span><b>8 de 14</b></div></article>
             <article className="stat-card"><div className="stat-top"><span>Visitas esta semana</span><div className="stat-icon soft-orange"><CalendarDays size={18} /></div></div><div className="stat-value">03 <span className="trend neutral"><Clock3 size={13} /> próximas</span></div><div className="stat-foot">A próxima é amanhã, às <b>14h</b></div><div className="visit-avatars"><span>AS</span><span>CL</span><span>+1</span><small>locais na agenda</small></div></article>
-            <article className="ai-card"><div className="ai-orb"><Sparkles size={20} /></div><div className="ai-tag">RADAR HOPLINK</div><h3>Uma oportunidade<br/>pode estar passando.</h3><p>Há <b>6 estabelecimentos</b> novos na região para você analisar.</p><button onClick={() => setShowSearch(true)}>Ver oportunidades <ArrowUpRight size={15} /></button><span className="ai-decoration">✳</span></article>
+            <article className="ai-card"><div className="ai-orb"><Sparkles size={20} /></div><div className="ai-tag">RADAR HOPLINK</div><h3>Uma oportunidade<br/>pode estar passando.</h3><p>Há <b>6 estabelecimentos</b> novos na região para você analisar.</p><button onClick={() => { setEditingSearch(true); setShowSearch(true); }}>Ver oportunidades <ArrowUpRight size={15} /></button><span className="ai-decoration">✳</span></article>
           </div>
 
           <section className="pipeline-section"><div className="section-heading"><div><h2>Seu funil comercial</h2><p>Acompanhe cada oportunidade, da descoberta ao primeiro pedido.</p></div><button className="text-button" onClick={() => setNotice("Visão completa do funil será incluída na próxima etapa.")}>Ver funil completo <ArrowUpRight size={15} /></button></div>
@@ -155,7 +165,50 @@ export default function Home() {
         </div>
       </section>
 
-      {showSearch && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowSearch(false); }}><section className="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title"><button className="modal-close" onClick={() => setShowSearch(false)} aria-label="Fechar"><X size={18}/></button><div className="modal-icon"><MapPin size={21}/></div><div className="modal-kicker">RADAR DE OPORTUNIDADES</div><h2 id="search-title">Onde vamos procurar?</h2><p>Pesquise empresas por cidade e perfil. A Econodata retorna cadastros empresariais; a presença de cerveja artesanal deve ser confirmada separadamente.</p><label className="field-label" htmlFor="city">Cidade e UF</label><div className="modal-input"><MapPin size={17}/><input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: São Carlos, SP"/></div><label className="field-label">Tipos de estabelecimento</label><div className="category-chips">{(Object.entries(ECONODATA_CATEGORIES) as [EconodataCategory, {label: string}][]).map(([key, value]) => <button key={key} className={categories.includes(key) ? "selected" : ""} onClick={() => toggleCategory(key)}>{categories.includes(key) && <Check size={13}/>} {value.label}</button>)}</div><div className="source-note"><Sparkles size={16}/><span><b>Busca empresarial via Econodata</b><small>Busca por cidade e CNAE. A integração exige uma chave de API configurada no servidor.</small></span></div>{searchError && <div className="search-error" role="alert">{searchError}</div>}<button className="primary-button modal-submit" onClick={runDiscovery} disabled={searching}>{searching ? "Buscando empresas…" : "Buscar empresas"} {!searching && <ArrowUpRight size={16}/>}</button>{discovered.length > 0 && <div className="discovery-results"><h3>{discovered.length} empresas encontradas</h3>{discovered.map((item) => <article key={item.id}><div><b>{item.name}</b><small>{[item.category, item.city, item.state, item.phone].filter(Boolean).join(" · ")}</small></div><button onClick={() => addDiscovered(item)}>Adicionar lead</button></article>)}</div>}</section></div>}
+      {showSearch && (
+        <div className="modal-backdrop discovery-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowSearch(false); }}>
+          <section className={`search-modal ${!editingSearch && discovered.length ? "results-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="search-title">
+            <button className="modal-close" onClick={() => setShowSearch(false)} aria-label="Fechar"><X size={18}/></button>
+            {editingSearch || !discovered.length ? <>
+              <div className="modal-icon"><MapPin size={21}/></div>
+              <div className="modal-kicker">RADAR DE OPORTUNIDADES</div>
+              <h2 id="search-title">Onde vamos procurar?</h2>
+              <p>Pesquise empresas por cidade e perfil. A Econodata retorna cadastros empresariais; a presença de cerveja artesanal deve ser confirmada separadamente.</p>
+              <label className="field-label" htmlFor="city">Cidade e UF</label>
+              <div className="modal-input"><MapPin size={17}/><input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: São Carlos, SP"/></div>
+              <label className="field-label">Tipos de estabelecimento</label>
+              <div className="category-chips">{(Object.entries(ECONODATA_CATEGORIES) as [EconodataCategory, {label: string}][]).map(([key, value]) => <button key={key} className={categories.includes(key) ? "selected" : ""} onClick={() => toggleCategory(key)}>{categories.includes(key) && <Check size={13}/>} {value.label}</button>)}</div>
+              <div className="source-note"><Sparkles size={16}/><span><b>Busca empresarial via Econodata</b><small>Busca por cidade e CNAE. A presença de cerveja artesanal precisa ser confirmada separadamente.</small></span></div>
+              {searchError && <div className="search-error" role="alert">{searchError}</div>}
+              <button className="primary-button modal-submit" onClick={runDiscovery} disabled={searching}>{searching ? "Buscando empresas…" : "Buscar empresas"} {!searching && <ArrowUpRight size={16}/>}</button>
+            </> : <>
+              <div className="results-heading">
+                <div><div className="modal-kicker">RADAR DE OPORTUNIDADES</div><h2 id="search-title">Empresas encontradas</h2><p>{city} · {discovered.length} resultados da Econodata</p></div>
+                <button className="secondary-button edit-search" onClick={() => setEditingSearch(true)}><SlidersHorizontal size={15}/> Editar busca</button>
+              </div>
+              <div className="results-tools">
+                <label className="results-search"><Search size={17}/><input value={discoveryQuery} onChange={(e) => setDiscoveryQuery(e.target.value)} placeholder="Buscar por nome, cidade ou categoria..."/>{discoveryQuery && <button onClick={() => setDiscoveryQuery("")} aria-label="Limpar busca"><X size={15}/></button>}</label>
+                <span>Mostrando <b>{visibleDiscovered.length}</b> de <b>{discovered.length}</b></span>
+              </div>
+              <div className="discovery-results">
+                <div className="results-columns"><span>ESTABELECIMENTO</span><span>LOCALIZAÇÃO</span><span>CONTATO</span><span>INDÍCIO ARTESANAL</span><span>AÇÃO</span></div>
+                {visibleDiscovered.map((item) => {
+                  const alreadyAdded = addedDiscoveryIds.includes(item.id);
+                  return <article key={item.id}>
+                    <div className="result-business"><span className="result-avatar"><Store size={19}/></span><div><b>{item.name}</b><small>{item.category || "Estabelecimento"}{item.cnpj ? ` · CNPJ ${item.cnpj}` : ""}</small></div></div>
+                    <div className="result-location"><b>{[item.neighborhood, item.city, item.state].filter(Boolean).join(", ") || "Localização não informada"}</b><small>{item.address || "Endereço não informado no cadastro da Econodata"}</small></div>
+                    <div className="result-contact">{item.phone ? <a href={`tel:${item.phone}`}>{item.phone}</a> : <span>Sem telefone cadastrado</span>}{item.website && <small>{item.website}</small>}</div>
+                    <div className="result-signal"><span>Confirmar</span><small>Verificação pendente</small></div>
+                    <button className={`add-result ${alreadyAdded ? "added" : ""}`} onClick={() => addDiscovered(item)} disabled={alreadyAdded}>{alreadyAdded ? <><Check size={15}/> Lead adicionado</> : <><Plus size={15}/> Adicionar lead</>}</button>
+                  </article>;
+                })}
+                {visibleDiscovered.length === 0 && <div className="results-empty">Nenhuma empresa corresponde a “{discoveryQuery}”.</div>}
+              </div>
+              <div className="results-footnote">Dados cadastrais fornecidos pela Econodata. Confirme as informações e a presença de cerveja artesanal antes do contato.</div>
+            </>}
+          </section>
+        </div>
+      )}
     </main>
   );
 }

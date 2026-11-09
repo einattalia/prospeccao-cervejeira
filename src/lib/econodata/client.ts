@@ -7,7 +7,6 @@ import {
 
 const API_BASE_URL = "https://api.econodata.com.br/v4";
 const PAGE_RESULT_LIMIT = 25;
-const MAX_CATEGORY_GROUPS = 3;
 
 export class EconodataError extends Error {
   constructor(message: string, readonly status: number) {
@@ -65,16 +64,36 @@ function extractRows(payload: unknown): Record<string, unknown>[] {
 function normalizeProspect(row: Record<string, unknown>, checkedAt: string): EconodataProspect | null {
   const cadastro = nestedRecord(row, "cadastro");
   const address = nestedRecord(row, "endereco");
+  const cadastroAddress = nestedRecord(cadastro, "endereco");
+  const addressRecords = [
+    row,
+    cadastro,
+    address,
+    cadastroAddress,
+    nestedRecord(row, "enderecoPrincipal"),
+    nestedRecord(cadastro, "enderecoPrincipal"),
+    nestedRecord(row, "enderecoFiscal"),
+    nestedRecord(cadastro, "enderecoFiscal"),
+  ];
   const cnpj = stringValue(row.cnpj, cadastro.cnpj, row.documento);
   const name = stringValue(row.nomeFantasia, cadastro.nomeFantasia, row.razaoSocial, cadastro.razaoSocial, row.nome, row.name);
   if (!name) return null;
 
-  const city = stringValue(row.cidade, cadastro.cidade, address.cidade, row.municipio) ?? "";
-  const state = stringValue(row.uf, cadastro.uf, address.uf, row.estado) ?? "";
-  const street = stringValue(row.logradouro, cadastro.logradouro, address.logradouro, row.enderecoCompleto);
-  const number = stringValue(row.numero, cadastro.numero, address.numero);
-  const neighborhood = stringValue(row.bairro, cadastro.bairro, address.bairro);
-  const addressLine = [street, number, neighborhood, city, state].filter(Boolean).join(", ") || null;
+  const city = stringValue(row.cidade, cadastro.cidade, address.cidade, cadastroAddress.cidade, row.municipio) ?? "";
+  const state = stringValue(row.uf, cadastro.uf, address.uf, cadastroAddress.uf, row.estado) ?? "";
+  const streetType = stringValue(...addressRecords.map((item) => item.tipoLogradouro), ...addressRecords.map((item) => item.descricaoTipoLogradouro));
+  const street = stringValue(...addressRecords.map((item) => item.logradouro), ...addressRecords.map((item) => item.rua), ...addressRecords.map((item) => item.street));
+  const number = stringValue(...addressRecords.map((item) => item.numero), ...addressRecords.map((item) => item.numeroLogradouro));
+  const complement = stringValue(...addressRecords.map((item) => item.complemento), ...addressRecords.map((item) => item.complement));
+  const neighborhood = stringValue(row.bairro, cadastro.bairro, address.bairro, cadastroAddress.bairro);
+  const suppliedAddress = stringValue(
+    row.enderecoCompleto, cadastro.enderecoCompleto,
+    row.enderecoFormatado, cadastro.enderecoFormatado,
+    row.endereco, cadastro.endereco,
+    row.address, cadastro.address,
+  );
+  const streetLine = [streetType, street].filter(Boolean).join(" ");
+  const addressLine = suppliedAddress ?? ([streetLine, number, complement, neighborhood].filter(Boolean).join(", ") || null);
   const cnae = stringValue(row.cnaePrimario, cadastro.cnaePrimario, row.cnae);
 
   return {
@@ -96,7 +115,7 @@ function normalizeProspect(row: Record<string, unknown>, checkedAt: string): Eco
 async function searchCnaeGroup(input: {
   city: string;
   state: string;
-  cnae: string;
+  cnaes: string[];
   apiKey: string;
   signal: AbortSignal;
 }): Promise<{ rows: Record<string, unknown>[]; tokenEstimate: string | null }> {
@@ -109,11 +128,12 @@ async function searchCnaeGroup(input: {
     },
     body: JSON.stringify({
       filtros: {
-        uf: input.state,
-        cidade: input.city,
-        cnaePrimario: input.cnae,
+        uf: [input.state],
+        cidade: [input.city],
+        cnaePrimario: input.cnaes,
       },
       incluir: ["cadastro", "contatosBasicos"],
+      pagina: { tamanho: PAGE_RESULT_LIMIT },
     }),
     cache: "no-store",
     signal: input.signal,
@@ -146,22 +166,22 @@ export async function searchEconodata(input: {
   const apiKey = process.env.ECONODATA_API_KEY;
   if (!apiKey) throw new EconodataError("A chave ECONODATA_API_KEY ainda não está configurada no servidor.", 503);
 
-  const cnaeGroups = [...new Set(input.categories.map((category) => ECONODATA_CATEGORIES[category].cnae))].slice(0, MAX_CATEGORY_GROUPS);
-  if (cnaeGroups.length === 0) throw new EconodataError("Selecione pelo menos um tipo de estabelecimento.", 400);
+  const cnaes = [...new Set(input.categories.flatMap((category) => ECONODATA_CATEGORIES[category].cnaes))];
+  if (cnaes.length === 0) throw new EconodataError("Selecione pelo menos um tipo de estabelecimento.", 400);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20_000);
   const checkedAt = new Date().toISOString();
 
   try {
-    // One request per unique CNAE group; the page remains capped to keep pilot usage bounded.
-    const pages = await Promise.all(cnaeGroups.map((cnae) => searchCnaeGroup({
+    // Send selected CNAEs together in one segment request and cap the returned page.
+    const pages = [await searchCnaeGroup({
       city: input.city,
       state: input.state,
-      cnae,
+      cnaes,
       apiKey,
       signal: controller.signal,
-    })));
+    })];
 
     const prospectsById = new Map<string, EconodataProspect>();
     for (const page of pages) {
