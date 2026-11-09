@@ -1,6 +1,6 @@
 export const ECONODATA_CATEGORIES = {
-  bars: { label: "Bares", cnaes: ["56.11-2/04", "56.11-2/05"] },
-  restaurants: { label: "Restaurantes", cnaes: ["56.11-2/01"] },
+  bars: { label: "Bares", cnaes: ["5611-2/04", "5611-2/05"] },
+  restaurants: { label: "Restaurantes", cnaes: ["5611-2/01"] },
   beverage_stores: { label: "Lojas de bebidas", cnaes: ["47.23-7"] },
   emporiums: { label: "Empórios", cnaes: ["47.23-7"] },
   premium_markets: { label: "Mercados", cnaes: ["47.11-3"] },
