@@ -10,71 +10,13 @@ const steps = [
   { number: "03", title: "Organize sua prospecção", text: "Adicione os estabelecimentos ao funil e acompanhe os próximos passos comerciais.", icon: Workflow },
 ];
 
-function IconButton({ children, label }: { children: React.ReactNode; label: string }) {
-  return <button className="icon-button" aria-label={label}>{children}</button>;
-}
+const benefits = [
+  { title: "Busca por perfil e localização", text: "Pesquise bares, restaurantes, empórios e outros estabelecimentos na cidade que você atende.", icon: MapPin },
+  { title: "Informações reunidas", text: "Visualize os dados empresariais disponíveis, como nome, localização e contato, em uma lista clara.", icon: Building2 },
+  { title: "Funil para acompanhar", text: "Registre oportunidades e organize a evolução do contato em etapas comerciais.", icon: Workflow },
+];
 
-export default function Home() {
-  const [prospects, setProspects] = useState(initialProspects);
-  const [query, setQuery] = useState("");
-  const [stageFilter, setStageFilter] = useState("Todas as etapas");
-  const [showSearch, setShowSearch] = useState(false);
-  const [city, setCity] = useState("São Carlos, SP");
-  const [categories, setCategories] = useState<EconodataCategory[]>(["bars", "restaurants"]);
-  const [discovered, setDiscovered] = useState<EconodataProspect[]>([]);
-  const [searchError, setSearchError] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [notice, setNotice] = useState("");
-  const filtered = useMemo(() => prospects.filter((p) => {
-    const matchesQuery = `${p.name} ${p.category} ${p.neighborhood}`.toLowerCase().includes(query.toLowerCase());
-    return matchesQuery && (stageFilter === "Todas as etapas" || p.status === stageFilter);
-  }), [prospects, query, stageFilter]);
-
-  async function runDiscovery() {
-    const parts = city.split(",").map((part) => part.trim());
-    if (parts.length < 2 || !parts[0] || !/^[A-Za-z]{2}$/.test(parts[1]) || categories.length === 0) {
-      setSearchError("Informe a cidade e a UF (por exemplo, São Carlos, SP) e selecione ao menos uma categoria.");
-      return;
-    }
-    setSearching(true);
-    setSearchError("");
-    try {
-      const response = await fetch("/api/prospects/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city: parts[0], state: parts[1], categories }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Não foi possível concluir a busca.");
-      setDiscovered(data.prospects ?? []);
-      setSearchError(data.prospects?.length ? "" : "A Econodata respondeu, mas não encontramos empresas para estes filtros.");
-    } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "Falha ao consultar a Econodata.");
-    } finally {
-      setSearching(false);
-    }
-  }
-
-  function toggleCategory(category: EconodataCategory) {
-    setCategories((current) => current.includes(category) ? current.filter((item) => item !== category) : [...current, category]);
-  }
-
-  function addDiscovered(prospect: EconodataProspect) {
-    setProspects((current) => current.some((item) => item.name.toLowerCase() === prospect.name.toLowerCase()) ? current : [{
-      id: Date.now(), name: prospect.name, category: prospect.category, neighborhood: [prospect.neighborhood, prospect.city].filter(Boolean).join(" · "), status: "Novo lead", signal: "Confirmar", source: "Cadastro Econodata", date: "agora", initials: prospect.name.slice(0, 2).toUpperCase(), tone: "mint",
-    }, ...current]);
-    setNotice(`${prospect.name} adicionado às oportunidades para qualificação.`);
-  }
-
-  function advanceProspect(id: number) {
-    setProspects((current) => current.map((p) => {
-      if (p.id !== id) return p;
-      const index = stages.indexOf(p.status);
-      const next = stages[Math.min(index + 1, stages.length - 1)];
-      return { ...p, status: next };
-    }));
-  }
-
+export default function LandingPage() {
   return (
     <main className="marketing-site">
       <header className="marketing-header">
@@ -101,25 +43,35 @@ export default function Home() {
           </div>
           <div className="hero-footnote"><Check size={15}/> Busca empresarial integrada à Econodata</div>
         </div>
-      </aside>
-
-      <section className="main-area" id="top">
-        <header className="topbar"><button className="mobile-menu" aria-label="Abrir menu"><Menu size={20} /></button><div className="breadcrumb">Workspace <span>/</span> <strong>Visão geral</strong></div><div className="topbar-actions"><span className="today-label">Domingo, 8 de novembro</span><IconButton label="Notificações"><Bell size={18} /></IconButton><div className="top-avatar">D</div></div></header>
-        <div className="content-wrap">
-          {notice && <div className="notice"><Sparkles size={16} />{notice}<button onClick={() => setNotice("")} aria-label="Fechar aviso"><X size={16} /></button></div>}
-          <div className="welcome-row"><div><div className="eyebrow"><span className="pulse-dot" />DOMINGO, 8 DE NOVEMBRO DE 2026</div><h1>Bom dia, Diegão <span>✳</span></h1><p>Aqui está o resumo da sua prospecção. Bora abrir novos pontos?</p></div><button className="primary-button" onClick={() => setShowSearch(true)}><Plus size={17} /> Buscar oportunidades</button></div>
-
-          <div className="stats-grid">
-            <article className="stat-card"><div className="stat-top"><span>Oportunidades no radar</span><div className="stat-icon soft-purple"><Users size={18} /></div></div><div className="stat-value">24 <span className="trend positive"><ArrowUpRight size={14} /> 12%</span></div><div className="stat-foot">em <b>3 cidades</b> atendidas</div><div className="mini-bars"><i style={{height:"35%"}}/><i style={{height:"54%"}}/><i style={{height:"42%"}}/><i style={{height:"69%"}}/><i style={{height:"48%"}}/><i style={{height:"78%"}}/><i style={{height:"100%"}}/></div></article>
-            <article className="stat-card"><div className="stat-top"><span>Contatos em andamento</span><div className="stat-icon soft-blue"><ArrowUpRight size={18} /></div></div><div className="stat-value">08 <span className="trend positive"><ArrowUpRight size={14} /> 2 novos</span></div><div className="stat-foot">leads que precisam de <b>acompanhamento</b></div><div className="progress-line"><span style={{width:"58%"}}/></div><div className="progress-caption"><span>Meta mensal</span><b>8 de 14</b></div></article>
-            <article className="stat-card"><div className="stat-top"><span>Visitas esta semana</span><div className="stat-icon soft-orange"><CalendarDays size={18} /></div></div><div className="stat-value">03 <span className="trend neutral"><Clock3 size={13} /> próximas</span></div><div className="stat-foot">A próxima é amanhã, às <b>14h</b></div><div className="visit-avatars"><span>AS</span><span>CL</span><span>+1</span><small>locais na agenda</small></div></article>
-            <article className="ai-card"><div className="ai-orb"><Sparkles size={20} /></div><div className="ai-tag">RADAR HOPLINK</div><h3>Uma oportunidade<br/>pode estar passando.</h3><p>Há <b>6 estabelecimentos</b> novos na região para você analisar.</p><button onClick={() => setShowSearch(true)}>Ver oportunidades <ArrowUpRight size={15} /></button><span className="ai-decoration">✳</span></article>
+        <div className="hero-visual" aria-label="Prévia ilustrativa da plataforma">
+          <div className="visual-glow" />
+          <div className="visual-card">
+            <div className="visual-top"><div><span className="visual-kicker">RADAR DE OPORTUNIDADES</span><h2>Uma nova rota começa aqui.</h2></div><span className="visual-icon"><Sparkles size={19}/></span></div>
+            <div className="visual-search"><MapPin size={17}/><span>São Carlos, SP</span><span className="visual-search-tag">Região</span></div>
+            <div className="visual-chips"><span className="visual-chip active"><Check size={13}/> Bares</span><span className="visual-chip active"><Check size={13}/> Restaurantes</span><span className="visual-chip">Empórios</span></div>
+            <div className="visual-list-label">OPORTUNIDADES PARA REVISAR <span>PRÉVIA</span></div>
+            <div className="visual-lead"><span className="visual-store"><Store size={17}/></span><span><b>Seu próximo cliente</b><small>Bar · São Carlos, SP</small></span><span className="visual-lead-arrow"><ArrowUpRight size={15}/></span></div>
+            <div className="visual-lead"><span className="visual-store amber"><Store size={17}/></span><span><b>Um novo ponto de venda</b><small>Restaurante · região escolhida</small></span><span className="visual-lead-arrow"><ArrowUpRight size={15}/></span></div>
+            <div className="visual-bottom"><span className="visual-pulse"/> Organize sua busca e avance no seu ritmo</div>
           </div>
           <div className="floating-note"><span><Check size={16}/></span><div><b>Prospecção organizada</b><small>Da descoberta ao acompanhamento</small></div></div>
         </div>
       </section>
 
-      {showSearch && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowSearch(false); }}><section className="search-modal" role="dialog" aria-modal="true" aria-labelledby="search-title"><button className="modal-close" onClick={() => setShowSearch(false)} aria-label="Fechar"><X size={18}/></button><div className="modal-icon"><MapPin size={21}/></div><div className="modal-kicker">RADAR DE OPORTUNIDADES</div><h2 id="search-title">Onde vamos procurar?</h2><p>Pesquise empresas por cidade e perfil. A Econodata retorna cadastros empresariais; a presença de cerveja artesanal deve ser confirmada separadamente.</p><label className="field-label" htmlFor="city">Cidade e UF</label><div className="modal-input"><MapPin size={17}/><input id="city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Ex.: São Carlos, SP"/></div><label className="field-label">Tipos de estabelecimento</label><div className="category-chips">{(Object.entries(ECONODATA_CATEGORIES) as [EconodataCategory, {label: string}][]).map(([key, value]) => <button key={key} className={categories.includes(key) ? "selected" : ""} onClick={() => toggleCategory(key)}>{categories.includes(key) && <Check size={13}/>} {value.label}</button>)}</div><div className="source-note"><Sparkles size={16}/><span><b>Busca empresarial via Econodata</b><small>Busca por cidade e CNAE. A integração exige uma chave de API configurada no servidor.</small></span></div>{searchError && <div className="search-error" role="alert">{searchError}</div>}<button className="primary-button modal-submit" onClick={runDiscovery} disabled={searching}>{searching ? "Buscando empresas…" : "Buscar empresas"} {!searching && <ArrowUpRight size={16}/>}</button>{discovered.length > 0 && <div className="discovery-results"><h3>{discovered.length} empresas encontradas</h3>{discovered.map((item) => <article key={item.id}><div><b>{item.name}</b><small>{[item.category, item.city, item.state, item.phone].filter(Boolean).join(" · ")}</small></div><button onClick={() => addDiscovered(item)}>Adicionar lead</button></article>)}</div>}</section></div>}
+      <div className="marketing-ribbon"><span>FEITO PARA QUEM LEVA BOAS CERVEJAS A NOVOS LUGARES</span><i>✳</i><span>BUSCA POR CIDADE E CATEGORIA</span><i>✳</i><span>OPORTUNIDADES EM UM SÓ LUGAR</span></div>
+
+      <section className="marketing-how" id="como-funciona">
+        <div className="marketing-section-heading"><div className="marketing-eyebrow"><span/> SIMPLES DE COMEÇAR</div><h2>Da região escolhida<br/>à próxima conversa.</h2><p>Um fluxo direto para encontrar estabelecimentos e organizar o trabalho comercial.</p></div>
+        <div className="steps-grid">{steps.map(({number,title,text,icon:Icon})=><article className="step-card" key={number}><div className="step-top"><span>{number}</span><Icon size={21}/></div><h3>{title}</h3><p>{text}</p></article>)}</div>
+      </section>
+
+      <section className="marketing-features" id="recursos">
+        <div className="features-intro"><div className="marketing-eyebrow"><span/> SUA PROSPECÇÃO, MAIS CLARA</div><h2>Menos tempo procurando.<br/><em>Mais foco nas relações.</em></h2><p>O Hoplink ajuda representantes e cervejarias a transformar uma busca por região em uma rotina comercial mais organizada.</p><Link href="/app" className="feature-link">Conhecer a plataforma <ArrowUpRight size={16}/></Link></div>
+        <div className="feature-list">{benefits.map(({title,text,icon:Icon})=><article className="feature-item" key={title}><span className="feature-icon"><Icon size={19}/></span><div><h3>{title}</h3><p>{text}</p></div><ArrowRight size={17} className="feature-arrow"/></article>)}</div>
+      </section>
+
+      <section className="marketing-cta"><div className="cta-decoration">✳</div><div className="marketing-eyebrow"><span/> SEU PRÓXIMO PASSO</div><h2>Comece pela sua próxima região.</h2><p>Acesse o painel, escolha onde prospectar e veja como o fluxo funciona.</p><Link href="/app" className="hero-primary">Abrir o Hoplink <ArrowRight size={18}/></Link><small>Os dados de endereço e contato dependem das informações disponíveis no cadastro consultado.</small></section>
+      <footer className="marketing-footer"><Link href="/" className="marketing-brand"><span className="brand-mark"><span/></span><span>hoplink<span className="brand-dot">.</span><small>INTELIGÊNCIA COMERCIAL</small></span></Link><span>Prospecção cervejeira com mais clareza.</span><Link href="/app">Acessar plataforma <ArrowUpRight size={14}/></Link></footer>
     </main>
   );
 }
