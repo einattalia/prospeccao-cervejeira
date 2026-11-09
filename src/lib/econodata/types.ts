@@ -1,9 +1,9 @@
 export const ECONODATA_CATEGORIES = {
-  bars: { label: "Bares", cnae: "56.11-2" },
-  restaurants: { label: "Restaurantes", cnae: "56.11-2" },
-  beverage_stores: { label: "Lojas de bebidas", cnae: "47.23-7" },
-  emporiums: { label: "Empórios", cnae: "47.23-7" },
-  premium_markets: { label: "Mercados", cnae: "47.11-3" },
+  bars: { label: "Bares", cnaes: ["56.11-2/04", "56.11-2/05"] },
+  restaurants: { label: "Restaurantes", cnaes: ["56.11-2/01"] },
+  beverage_stores: { label: "Lojas de bebidas", cnaes: ["47.23-7"] },
+  emporiums: { label: "Empórios", cnaes: ["47.23-7"] },
+  premium_markets: { label: "Mercados", cnaes: ["47.11-3"] },
 } as const;
 
 export type EconodataCategory = keyof typeof ECONODATA_CATEGORIES;
